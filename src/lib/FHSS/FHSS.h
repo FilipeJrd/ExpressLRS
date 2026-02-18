@@ -30,6 +30,20 @@ typedef struct {
     uint32_t    freq_center;
 } fhss_config_t;
 
+enum fhss_domain_index_t : uint8_t {
+    DOMAIN_AU_915 = 0,
+    DOMAIN_FCC_915,
+    DOMAIN_EU_868,
+    DOMAIN_IN_866,
+    DOMAIN_AU_433,
+    DOMAIN_EU_433,
+    DOMAIN_US_433,
+    DOMAIN_US_433_WIDE,
+    DOMAIN_ISM_BR_915,
+};
+
+extern const uint32_t FHSSfreqsISM_BR_915[];
+
 extern volatile uint8_t FHSSptr;
 extern int32_t FreqCorrection;      // Only used for the SX1276
 extern int32_t FreqCorrection_2;    // Only used for the SX1276
@@ -40,6 +54,7 @@ extern uint32_t freq_spread;
 extern uint8_t FHSSsequence[];
 extern uint_fast8_t sync_channel;
 extern const fhss_config_t *FHSSconfig;
+extern bool FHSSuseFreqTableBR915;
 
 // DualBand Variables
 extern bool FHSSusePrimaryFreqBand;
@@ -107,6 +122,11 @@ static inline uint32_t FHSSgetInitialFreq()
 {
     if (FHSSusePrimaryFreqBand)
     {
+        if (FHSSuseFreqTableBR915)
+        {
+            return FHSSfreqsISM_BR_915[sync_channel] - FreqCorrection;
+        }
+
         return FHSSconfig->freq_start + (sync_channel * freq_spread / FREQ_SPREAD_SCALE) - FreqCorrection;
     }
     else
@@ -147,6 +167,11 @@ static inline uint32_t FHSSgetNextFreq()
 
     if (FHSSusePrimaryFreqBand)
     {
+        if (FHSSuseFreqTableBR915)
+        {
+            return FHSSfreqsISM_BR_915[FHSSsequence[FHSSptr]] - FreqCorrection;
+        }
+
         return FHSSconfig->freq_start + (freq_spread * FHSSsequence[FHSSptr] / FREQ_SPREAD_SCALE) - FreqCorrection;
     }
     else
@@ -176,7 +201,14 @@ static inline uint32_t FHSSGeminiFreq(uint8_t FHSSsequenceIdx)
 
     if (FHSSusePrimaryFreqBand)
     {
-        freq = FHSSconfig->freq_start + (freq_spread * offSetIdx / FREQ_SPREAD_SCALE) - FreqCorrection_2;
+        if (FHSSuseFreqTableBR915)
+        {
+            freq = FHSSfreqsISM_BR_915[offSetIdx] - FreqCorrection_2;
+        }
+        else
+        {
+            freq = FHSSconfig->freq_start + (freq_spread * offSetIdx / FREQ_SPREAD_SCALE) - FreqCorrection_2;
+        }
     }
     else
     {
