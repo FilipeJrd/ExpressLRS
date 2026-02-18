@@ -20,6 +20,7 @@ const fhss_config_t domains[] = {
     {"EU433",  FREQ_HZ_TO_REG_VAL(433100000), FREQ_HZ_TO_REG_VAL(434450000), 3, 434000000},
     {"US433",  FREQ_HZ_TO_REG_VAL(433250000), FREQ_HZ_TO_REG_VAL(438000000), 8, 434000000},
     {"US433W",  FREQ_HZ_TO_REG_VAL(423500000), FREQ_HZ_TO_REG_VAL(438000000), 20, 434000000},
+    {"BR915",  FREQ_HZ_TO_REG_VAL(902300000), FREQ_HZ_TO_REG_VAL(926900000), 40, 917300000},
 };
 
 #if defined(RADIO_LR1121)
@@ -51,6 +52,21 @@ const fhss_config_t domains[] = {
 // Our table of FHSS frequencies. Define a regulatory domain to select the correct set for your location and radio
 const fhss_config_t *FHSSconfig;
 const fhss_config_t *FHSSconfigDualBand;
+bool FHSSuseFreqTableBR915 = false;
+
+const uint32_t FHSSfreqsISM_BR_915[] = {
+    FREQ_HZ_TO_REG_VAL(902300000), FREQ_HZ_TO_REG_VAL(902800000), FREQ_HZ_TO_REG_VAL(903300000), FREQ_HZ_TO_REG_VAL(903800000),
+    FREQ_HZ_TO_REG_VAL(904300000), FREQ_HZ_TO_REG_VAL(904800000), FREQ_HZ_TO_REG_VAL(905300000), FREQ_HZ_TO_REG_VAL(905800000),
+    FREQ_HZ_TO_REG_VAL(906300000), FREQ_HZ_TO_REG_VAL(906800000),
+    FREQ_HZ_TO_REG_VAL(915300000), FREQ_HZ_TO_REG_VAL(915700000), FREQ_HZ_TO_REG_VAL(916100000), FREQ_HZ_TO_REG_VAL(916500000),
+    FREQ_HZ_TO_REG_VAL(916900000), FREQ_HZ_TO_REG_VAL(917300000), FREQ_HZ_TO_REG_VAL(917700000), FREQ_HZ_TO_REG_VAL(918100000),
+    FREQ_HZ_TO_REG_VAL(918500000), FREQ_HZ_TO_REG_VAL(918900000), FREQ_HZ_TO_REG_VAL(919300000), FREQ_HZ_TO_REG_VAL(919700000),
+    FREQ_HZ_TO_REG_VAL(920100000), FREQ_HZ_TO_REG_VAL(920500000), FREQ_HZ_TO_REG_VAL(920900000), FREQ_HZ_TO_REG_VAL(921300000),
+    FREQ_HZ_TO_REG_VAL(921700000), FREQ_HZ_TO_REG_VAL(922100000), FREQ_HZ_TO_REG_VAL(922500000), FREQ_HZ_TO_REG_VAL(922900000),
+    FREQ_HZ_TO_REG_VAL(923300000), FREQ_HZ_TO_REG_VAL(923700000), FREQ_HZ_TO_REG_VAL(924100000), FREQ_HZ_TO_REG_VAL(924500000),
+    FREQ_HZ_TO_REG_VAL(924900000), FREQ_HZ_TO_REG_VAL(925300000), FREQ_HZ_TO_REG_VAL(925700000), FREQ_HZ_TO_REG_VAL(926100000),
+    FREQ_HZ_TO_REG_VAL(926500000), FREQ_HZ_TO_REG_VAL(926900000),
+};
 
 // Actual sequence of hops as indexes into the frequency list
 uint8_t FHSSsequence[FHSS_SEQUENCE_LEN];
@@ -81,8 +97,16 @@ uint16_t secondaryBandCount;
 void FHSSrandomiseFHSSsequence(const uint32_t seed)
 {
     FHSSconfig = &domains[firmwareOptions.domain];
+    FHSSuseFreqTableBR915 = (firmwareOptions.domain == DOMAIN_ISM_BR_915);
     sync_channel = FHSSconfig->freq_count / 2;
-    freq_spread = (FHSSconfig->freq_stop - FHSSconfig->freq_start) * FREQ_SPREAD_SCALE / (FHSSconfig->freq_count - 1);
+    if (FHSSuseFreqTableBR915)
+    {
+        freq_spread = 0;
+    }
+    else
+    {
+        freq_spread = (FHSSconfig->freq_stop - FHSSconfig->freq_start) * FREQ_SPREAD_SCALE / (FHSSconfig->freq_count - 1);
+    }
     primaryBandCount = (FHSS_SEQUENCE_LEN / FHSSconfig->freq_count) * FHSSconfig->freq_count;
 
     DBGLN("Primary Domain %s, %u channels, sync=%u",
