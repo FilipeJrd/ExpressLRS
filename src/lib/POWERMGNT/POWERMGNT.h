@@ -82,21 +82,12 @@ public:
     static PowerLevels_e getMinPower() { return MinPower; }
 
     /**
-     * @brief Get the MaxPower level supported by this device.
+     * @brief Get the MaxPower level supported by this device, constrained by
+     * the regulatory limit of the active FHSS domain.
      *
      * @return PowerLevels_e the maximum power level supported
      */
-    static PowerLevels_e getMaxPower() {
-        PowerLevels_e power;
-        power = MaxPower;
-        #if defined(Regulatory_Domain_EU_CE_2400)
-            if (power > PWR_100mW)
-            {
-                power = PWR_100mW;
-            }
-        #endif
-        return power;
-    }
+    static PowerLevels_e getMaxPower();
 
     /**
      * @brief Get the Default power level for this device

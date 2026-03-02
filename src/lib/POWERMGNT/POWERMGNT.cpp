@@ -1,4 +1,5 @@
 #include "POWERMGNT.h"
+#include "FHSS.h"
 #include "logging.h"
 #include "targets.h"
 
@@ -239,20 +240,23 @@ void POWERMGNT::setDefaultPower()
     setPower(getDefaultPower());
 }
 
+PowerLevels_e POWERMGNT::getMaxPower()
+{
+    PowerLevels_e power = MaxPower;
+    const fhss_config_t *domainConfig = FHSSusePrimaryFreqBand ? FHSSconfig : FHSSconfigDualBand;
+    if (domainConfig != nullptr && power > (PowerLevels_e)domainConfig->max_power)
+    {
+        power = (PowerLevels_e)domainConfig->max_power;
+    }
+    return power;
+}
+
 void POWERMGNT::setPower(PowerLevels_e Power)
 {
     Power = constrain(Power, getMinPower(), getMaxPower());
     if (Power == CurrentPower)
         return;
     CurrentPower = Power;
-
-    // When using SubHGz with CE, limit to a max of 25mW.
-    #if defined(Regulatory_Domain_EU_CE_2400) && defined(RADIO_LR1121)
-    if (Power > PWR_25mW && isUsingPrimaryFreqBand())
-    {
-        Power = (MinPower > PWR_25mW) ? getMinPower() : PWR_25mW;
-    }
-    #endif
 
     const uint8_t powerIdx = Power - getMinPower();
     if (POWER_OUTPUT_DACWRITE)

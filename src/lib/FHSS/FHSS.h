@@ -28,6 +28,7 @@ typedef struct {
     uint32_t    freq_stop;
     uint32_t    freq_count;
     uint32_t    freq_center;
+    uint8_t     max_power;  // PowerLevels_e cast — regulatory TX power limit for this domain
 } fhss_config_t;
 
 extern volatile uint8_t FHSSptr;
