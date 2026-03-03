@@ -26,8 +26,10 @@ typedef struct {
     const char  *domain;
     uint32_t    freq_start;
     uint32_t    freq_stop;
-    uint32_t    freq_count;
+    uint32_t    freq_count;   // TOTAL channels (used for frequency spacing calculation)
     uint32_t    freq_center;
+    uint8_t     excl_start;   // first channel index to exclude (0 if no exclusion)
+    uint8_t     excl_count;   // number of consecutive channels to exclude (0 if no exclusion)
 } fhss_config_t;
 
 extern volatile uint8_t FHSSptr;
@@ -54,6 +56,18 @@ extern const fhss_config_t *FHSSconfigDualBand;
 void FHSSrandomiseFHSSsequence(uint32_t seed);
 void FHSSrandomiseFHSSsequenceBuild(uint32_t seed, uint32_t freqCount, uint_fast8_t sync_channel, uint8_t *sequence);
 
+/**
+ * Map an effective channel index (0..effectiveCount-1) to an actual channel index
+ * (0..freq_count-1), skipping the excluded zone if one is configured for the domain.
+ * For domains with no exclusion (excl_count==0) this is a no-op.
+ */
+static inline uint8_t FHSSeffToActualIdx(uint8_t eff_idx)
+{
+    if (FHSSconfig->excl_count > 0 && eff_idx >= FHSSconfig->excl_start)
+        return eff_idx + FHSSconfig->excl_count;
+    return eff_idx;
+}
+
 static inline uint32_t FHSSgetMinimumFreq(void)
 {
     return FHSSconfig->freq_start;
@@ -64,16 +78,17 @@ static inline uint32_t FHSSgetMaximumFreq(void)
     return FHSSconfig->freq_stop;
 }
 
-// The number of frequencies for this regulatory domain
+// The number of effective (usable) frequencies for this regulatory domain.
+// For domains with an exclusion zone, this is freq_count minus excl_count.
 static inline uint32_t FHSSgetChannelCount(void)
 {
     if (FHSSusePrimaryFreqBand)
     {
-        return FHSSconfig->freq_count;
+        return FHSSconfig->freq_count - FHSSconfig->excl_count;
     }
     else
     {
-        return FHSSconfigDualBand->freq_count;
+        return FHSSconfigDualBand->freq_count - FHSSconfigDualBand->excl_count;
     }
 }
 
@@ -107,7 +122,7 @@ static inline uint32_t FHSSgetInitialFreq()
 {
     if (FHSSusePrimaryFreqBand)
     {
-        return FHSSconfig->freq_start + (sync_channel * freq_spread / FREQ_SPREAD_SCALE) - FreqCorrection;
+        return FHSSconfig->freq_start + (FHSSeffToActualIdx(sync_channel) * freq_spread / FREQ_SPREAD_SCALE) - FreqCorrection;
     }
     else
     {
@@ -147,7 +162,7 @@ static inline uint32_t FHSSgetNextFreq()
 
     if (FHSSusePrimaryFreqBand)
     {
-        return FHSSconfig->freq_start + (freq_spread * FHSSsequence[FHSSptr] / FREQ_SPREAD_SCALE) - FreqCorrection;
+        return FHSSconfig->freq_start + (freq_spread * FHSSeffToActualIdx(FHSSsequence[FHSSptr]) / FREQ_SPREAD_SCALE) - FreqCorrection;
     }
     else
     {
@@ -172,11 +187,11 @@ static inline uint32_t FHSSGeminiFreq(uint8_t FHSSsequenceIdx)
 {
     uint32_t freq;
     uint32_t numfhss = FHSSgetChannelCount();
-    uint8_t offSetIdx = (FHSSsequenceIdx + (numfhss / 2)) % numfhss; 
+    uint8_t offSetIdx = (FHSSsequenceIdx + (numfhss / 2)) % numfhss;
 
     if (FHSSusePrimaryFreqBand)
     {
-        freq = FHSSconfig->freq_start + (freq_spread * offSetIdx / FREQ_SPREAD_SCALE) - FreqCorrection_2;
+        freq = FHSSconfig->freq_start + (freq_spread * FHSSeffToActualIdx(offSetIdx) / FREQ_SPREAD_SCALE) - FreqCorrection_2;
     }
     else
     {

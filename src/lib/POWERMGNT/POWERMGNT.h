@@ -95,6 +95,14 @@ public:
                 power = PWR_100mW;
             }
         #endif
+        // ANATEL (Brazil) requires >= 35 hopping channels for 1W operation.
+        // BR_915 uses 30 effective channels (< 35), so power is capped at 250 mW.
+        #if defined(Regulatory_Domain_BR_915)
+            if (power > PWR_250mW)
+            {
+                power = PWR_250mW;
+            }
+        #endif
         return power;
     }
 

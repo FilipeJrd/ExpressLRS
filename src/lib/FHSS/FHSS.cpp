@@ -12,14 +12,19 @@
 #endif
 
 const fhss_config_t domains[] = {
-    {"AU915",  FREQ_HZ_TO_REG_VAL(915500000), FREQ_HZ_TO_REG_VAL(926900000), 20, 921000000},
-    {"FCC915", FREQ_HZ_TO_REG_VAL(903500000), FREQ_HZ_TO_REG_VAL(926900000), 40, 915000000},
-    {"EU868",  FREQ_HZ_TO_REG_VAL(863275000), FREQ_HZ_TO_REG_VAL(869575000), 13, 868000000},
-    {"IN866",  FREQ_HZ_TO_REG_VAL(865375000), FREQ_HZ_TO_REG_VAL(866950000), 4, 866000000},
-    {"AU433",  FREQ_HZ_TO_REG_VAL(433420000), FREQ_HZ_TO_REG_VAL(434420000), 3, 434000000},
-    {"EU433",  FREQ_HZ_TO_REG_VAL(433100000), FREQ_HZ_TO_REG_VAL(434450000), 3, 434000000},
-    {"US433",  FREQ_HZ_TO_REG_VAL(433250000), FREQ_HZ_TO_REG_VAL(438000000), 8, 434000000},
-    {"US433W",  FREQ_HZ_TO_REG_VAL(423500000), FREQ_HZ_TO_REG_VAL(438000000), 20, 434000000},
+    {"AU915",  FREQ_HZ_TO_REG_VAL(915500000), FREQ_HZ_TO_REG_VAL(926900000), 20, 921000000, 0, 0},
+    {"FCC915", FREQ_HZ_TO_REG_VAL(903500000), FREQ_HZ_TO_REG_VAL(926900000), 40, 915000000, 0, 0},
+    {"EU868",  FREQ_HZ_TO_REG_VAL(863275000), FREQ_HZ_TO_REG_VAL(869575000), 13, 868000000, 0, 0},
+    {"IN866",  FREQ_HZ_TO_REG_VAL(865375000), FREQ_HZ_TO_REG_VAL(866950000), 4,  866000000, 0, 0},
+    {"AU433",  FREQ_HZ_TO_REG_VAL(433420000), FREQ_HZ_TO_REG_VAL(434420000), 3,  434000000, 0, 0},
+    {"EU433",  FREQ_HZ_TO_REG_VAL(433100000), FREQ_HZ_TO_REG_VAL(434450000), 3,  434000000, 0, 0},
+    {"US433",  FREQ_HZ_TO_REG_VAL(433250000), FREQ_HZ_TO_REG_VAL(438000000), 8,  434000000, 0, 0},
+    {"US433W", FREQ_HZ_TO_REG_VAL(423500000), FREQ_HZ_TO_REG_VAL(438000000), 20, 434000000, 0, 0},
+    // Brazil ANATEL: 902.0-907.5 MHz (low) + 915.0-928.0 MHz (high).
+    // 42 channels span 902-928 MHz (~634 kHz spacing); channels 9-20 fall in the
+    // forbidden 907.5-915.0 MHz mobile-services band and are excluded (excl_start=9, excl_count=12).
+    // Effective channels: 42 - 12 = 30. ANATEL caps power at 250 mW for < 35 channels.
+    {"BR915",  FREQ_HZ_TO_REG_VAL(902000000), FREQ_HZ_TO_REG_VAL(928000000), 42, 915000000, 9, 12},
 };
 
 #if defined(RADIO_LR1121)
@@ -30,7 +35,7 @@ const fhss_config_t domainsDualBand[] = {
     #else
         "ISM2G4",
     #endif
-    FREQ_HZ_TO_REG_VAL(2400400000), FREQ_HZ_TO_REG_VAL(2479400000), 80, 2440000000}
+    FREQ_HZ_TO_REG_VAL(2400400000), FREQ_HZ_TO_REG_VAL(2479400000), 80, 2440000000, 0, 0}
 };
 #endif
 
@@ -44,7 +49,7 @@ const fhss_config_t domains[] = {
     #elif defined(Regulatory_Domain_ISM_2400)
         "ISM2G4",
     #endif
-    FREQ_HZ_TO_REG_VAL(2400400000), FREQ_HZ_TO_REG_VAL(2479400000), 80, 2440000000}
+    FREQ_HZ_TO_REG_VAL(2400400000), FREQ_HZ_TO_REG_VAL(2479400000), 80, 2440000000, 0, 0}
 };
 #endif
 
@@ -81,14 +86,18 @@ uint16_t secondaryBandCount;
 void FHSSrandomiseFHSSsequence(const uint32_t seed)
 {
     FHSSconfig = &domains[firmwareOptions.domain];
-    sync_channel = FHSSconfig->freq_count / 2;
+    // effectiveCount is the number of usable channels after removing the exclusion zone.
+    // freq_spread is still based on the total channel count so spacing is uniform across
+    // the full freq_start..freq_stop range.
+    uint32_t effectiveCount = FHSSconfig->freq_count - FHSSconfig->excl_count;
+    sync_channel = effectiveCount / 2;
     freq_spread = (FHSSconfig->freq_stop - FHSSconfig->freq_start) * FREQ_SPREAD_SCALE / (FHSSconfig->freq_count - 1);
-    primaryBandCount = (FHSS_SEQUENCE_LEN / FHSSconfig->freq_count) * FHSSconfig->freq_count;
+    primaryBandCount = (FHSS_SEQUENCE_LEN / effectiveCount) * effectiveCount;
 
-    DBGLN("Primary Domain %s, %u channels, sync=%u",
-        FHSSconfig->domain, FHSSconfig->freq_count, sync_channel);
+    DBGLN("Primary Domain %s, %u channels (%u effective), sync=%u",
+        FHSSconfig->domain, FHSSconfig->freq_count, effectiveCount, sync_channel);
 
-    FHSSrandomiseFHSSsequenceBuild(seed, FHSSconfig->freq_count, sync_channel, FHSSsequence);
+    FHSSrandomiseFHSSsequenceBuild(seed, effectiveCount, sync_channel, FHSSsequence);
 
 #if defined(RADIO_LR1121)
     FHSSconfigDualBand = &domainsDualBand[0];
