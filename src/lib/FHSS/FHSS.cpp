@@ -49,7 +49,12 @@ const fhss_config_t domains[] = {
     #elif defined(Regulatory_Domain_ISM_2400)
         "ISM2G4",
     #endif
-    FREQ_HZ_TO_REG_VAL(2400400000), FREQ_HZ_TO_REG_VAL(2479400000), 80, 2440000000, 0, 0}
+    FREQ_HZ_TO_REG_VAL(2400400000), FREQ_HZ_TO_REG_VAL(2479400000), 80, 2440000000, 0, 0},
+#if defined(UNIT_TEST)
+    // Test domain that exercises the channel-exclusion mechanism (mirrors BR915 geometry).
+    // 42 total channels, excl_start=9, excl_count=12 → 30 effective channels.
+    {"TST_EXCL", FREQ_HZ_TO_REG_VAL(2400400000), FREQ_HZ_TO_REG_VAL(2479400000), 42, 2440000000, 9, 12},
+#endif
 };
 #endif
 
